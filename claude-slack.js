@@ -45,6 +45,13 @@ const CONFIG = {
   writeTools: new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit', 'Bash']),
   /** Bash commands that are always allowed regardless of write-lock (read-only operations). */
   readOnlyBashPattern: /^\s*(find|ls|cat|head|tail|grep|rg|wc|stat|file|du|diff|git\s+(log|diff|status|show|branch|tag|remote|ls-files)|which|type|echo|pwd|env|printenv|curl\s+-[^|;&]*\s|wget\s+--spider)\b/,
+  /**
+   * Allow MCP tools (named `mcp__<server>__<tool>`) to run automatically. Off by
+   * default: MCP tools are denied by the gate below unless ALLOW_MCP_TOOLS is set.
+   * NOTE: when on, MCP tools bypass the plan-approval write gate, so only connect
+   * MCP servers you trust and scope their tokens minimally. See the README.
+   */
+  allowMcpTools: /^(1|true|yes)$/i.test(process.env.ALLOW_MCP_TOOLS || ''),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -482,6 +489,9 @@ async function runTurn(turn) {
       return capturePlan(input);
     }
     if (CONFIG.readTools.has(toolName)) return { behavior: 'allow', updatedInput: input };
+    if (CONFIG.allowMcpTools && toolName.startsWith('mcp__')) {
+      return { behavior: 'allow', updatedInput: input };
+    }
     if (toolName === 'Bash' && typeof input?.command === 'string' && CONFIG.readOnlyBashPattern.test(input.command)) {
       return { behavior: 'allow', updatedInput: input };
     }

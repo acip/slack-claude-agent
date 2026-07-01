@@ -72,12 +72,49 @@ All configuration is through environment variables (loaded from `.env`).
 | `CLAUDE_MODEL` | no | `claude-sonnet-5` | Model id. `claude-opus-4-8` is the higher-quality upgrade. |
 | `AGENT_PROMPT_FILE` | no | `./prompt.md` | Path to a custom system prompt file. Falls back to a built-in default if missing. |
 | `CLAUDE_SETTING_SOURCES` | no | `project,local` | Which Claude settings layers the agent inherits. Add `user` to also inherit your global `~/.claude` config. See Security. |
+| `ALLOW_MCP_TOOLS` | no | off | Allow MCP tools (`mcp__*`) to run. Off by default (the gate blocks them). See Tips and tricks. |
 
 Note: this app uses HTTP plus your signing secret. It does not use Socket Mode, so there is no `SLACK_APP_TOKEN` here by design.
 
 ## Customizing the system prompt
 
 The bot appends a system prompt on top of the Claude Code preset. To change its persona or house rules, copy `prompt.example.md` to `prompt.md` and edit it. If neither `prompt.md` nor a file at `AGENT_PROMPT_FILE` exists, a built-in default is used and a warning is logged at boot. The prompt is read once at startup, so restart the server (or `pm2 restart slack-claude-agent`) after editing.
+
+## Tips and tricks
+
+### Add MCP servers (Notion, Google Drive, GitHub, and more)
+
+The bot runs on the Claude Agent SDK, so it can use [MCP](https://modelcontextprotocol.io/) servers to reach tools like Notion, Google Drive, GitHub, or your own. There are two parts: telling the SDK about the server, and letting this app's permission gate run the tool.
+
+**1. Declare the server.** The SDK loads MCP servers from your Claude settings according to `CLAUDE_SETTING_SOURCES` (see Configuration). Two common options:
+
+* Per project: create a `.mcp.json` file in your `PROJECT_WORKSPACE` directory. Because the default `CLAUDE_SETTING_SOURCES` includes `project`, it is picked up automatically. `${VAR}` expands environment variables at load time.
+  ```json
+  {
+    "mcpServers": {
+      "notion": {
+        "type": "http",
+        "url": "https://mcp.notion.com/mcp",
+        "headers": { "Authorization": "Bearer ${NOTION_TOKEN}" }
+      },
+      "filesystem": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
+      }
+    }
+  }
+  ```
+* Global: configure the server in your own `~/.claude` config, then set `CLAUDE_SETTING_SOURCES=user,project,local` so the bot inherits it. Note the Security caveat about the `user` layer before doing this.
+
+**2. Allow the tools.** MCP tools are named `mcp__<server>__<tool>`, and this app's permission gate blocks unknown tools by default, so MCP tools stay denied until you opt in. Set `ALLOW_MCP_TOOLS=true` in `.env` and restart.
+
+**Trust caveat.** When `ALLOW_MCP_TOOLS` is on, MCP tools run automatically and are **not** behind the plan-approval write gate. An MCP server can read and write in whatever it connects to. Only connect servers you trust, and scope their tokens as narrowly as the task needs (read-only where possible).
+
+The details live in the Claude Agent SDK docs: [MCP in the Agent SDK](https://code.claude.com/docs/en/agent-sdk/mcp) and the [TypeScript SDK reference](https://code.claude.com/docs/en/agent-sdk/typescript) (`mcpServers`, `settingSources`, permissions).
+
+### Change the model
+
+Set `CLAUDE_MODEL` in `.env`. `claude-opus-4-8` is the highest quality, `claude-sonnet-5` (the default) is the cost and speed balance.
 
 ## Usage
 

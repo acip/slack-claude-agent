@@ -54,7 +54,7 @@ Operator checklist:
 
 1. Clone and install.
    ```
-   git clone <your-fork-url> slack-claude-agent
+   git clone https://github.com/acip/slack-claude-agent.git
    cd slack-claude-agent
    npm install
    ```

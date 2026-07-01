@@ -12,12 +12,6 @@ Think of it as a simple, solo, self-hosted take on the idea behind [Claude in Sl
 * When Claude wants to change files, it must present a plan first. Write tools stay locked until you press **Approve** in Slack. You can also press **Request changes** to send feedback.
 * Prefix a message with `plan:` to explicitly ask for a plan before any action.
 
-## What it does NOT do
-
-* It does not run in Anthropic's cloud. It runs on your host, against one directory you choose.
-* It does not post Claude's internal tool calls (Read, Bash, Edit, and so on) into Slack. Those are tracked internally for permission gating but never surfaced.
-* It does not use Socket Mode. It listens over plain HTTP and expects an HTTPS endpoint (a reverse proxy or tunnel) in front of it.
-
 ## Requirements
 
 Please read the [Security model](#security-model) before installing. This tool gives Claude real filesystem and shell access to a directory on the host, driven by Slack messages.

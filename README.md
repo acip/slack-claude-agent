@@ -1,8 +1,10 @@
 # slack-claude-agent
 
-Self-hosted Slack bot that lets you @mention Claude in any thread and get streaming replies, interactive question cards, and plan approval gating before it can touch your files. One Claude Agent SDK session per thread, running entirely on your own machine and workspace, with no third-party service in the middle.
+**Self-hosted, open source Claude in Slack alternative, for you or a small team.**
 
-Think of it as a simple, solo, self-hosted take on the idea behind [Claude in Slack](https://www.anthropic.com/news/introducing-claude-tag). You bring your own machine, your own Anthropic credentials, and one project directory. The bot does the rest.
+@mention Claude in any Slack thread and get streaming replies, interactive question cards, and plan-approval gating before it can touch your files. One Claude Agent SDK session per thread, running on your own machine and workspace.
+
+Anthropic's official [Claude in Slack](https://www.anthropic.com/news/introducing-claude-tag) is available on Team and Enterprise plans. This is a self-hostable alternative that anyone can run: you bring your own machine, your own Anthropic credentials, and one project directory.
 
 ## What it does
 

@@ -1,0 +1,19 @@
+{
+  "name": "slack-claude-agent",
+  "version": "1.0.0",
+  "description": "Self-hosted Slack to Claude Agent SDK bridge: @mention Claude in threads for streaming replies, question cards, and plan-gated file writes, all on your own machine.",
+  "license": "MIT",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.195",
+    "@slack/bolt": "^4.2.0",
+    "dotenv": "^16.4.5",
+    "slackify-markdown": "^4.5.0"
+  }
+}

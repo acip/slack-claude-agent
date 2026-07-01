@@ -1,0 +1,26 @@
+# Secrets & environment
+.env
+.env.*
+!.env.example
+
+# Runtime state (real Slack thread timestamps + Claude session UUIDs)
+thread_session_map.json
+
+# Operator-customized system prompt (commit prompt.example.md instead)
+prompt.md
+
+# Dependencies
+node_modules/
+
+# Archives / scratch
+*.zip
+
+# Logs & process managers
+*.log
+npm-debug.log*
+.pm2/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

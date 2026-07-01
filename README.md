@@ -62,7 +62,7 @@ Operator checklist:
    ```
    cloudflared tunnel --url http://localhost:3999
    ```
-3. Create the Slack app from the manifest. Go to [api.slack.com/apps](https://api.slack.com/apps), choose **Create New App**, then **From a manifest**, and paste `slack-app-manifest.yaml`. Replace `your-tunnel-host.example.com` in it with your tunnel hostname first. The manifest requests private-channel scopes (`groups:history`, `message.groups`) too; remove them if you only need public channels.
+3. Create the Slack app from the manifest. Go to [api.slack.com/apps](https://api.slack.com/apps), choose **Create New App**, then **From a manifest**, and paste [`slack-app-manifest.yaml`](slack-app-manifest.yaml). Replace `your-tunnel-host.example.com` in it with your tunnel hostname first. The manifest requests private-channel scopes (`groups:history`, `message.groups`) too; remove them if you only need public channels.
 4. Set both request URLs to `https://<your-tunnel-host>/slack/events`. It goes in two places: **Event Subscriptions** and **Interactivity & Shortcuts**. People miss the Interactivity one, and then buttons do nothing.
 5. Install the app to your workspace and copy the **Bot User OAuth Token** (`xoxb-...`) and the **Signing Secret**.
 6. Configure the environment.

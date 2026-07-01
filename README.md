@@ -18,6 +18,8 @@ Think of it as a simple, solo, self-hosted take on the idea behind [Claude in Sl
 * It does not post Claude's internal tool calls (Read, Bash, Edit, and so on) into Slack. Those are tracked internally for permission gating but never surfaced.
 * It does not use Socket Mode. It listens over plain HTTP and expects an HTTPS endpoint (a reverse proxy or tunnel) in front of it.
 
+## Requirements
+
 Please read the [Security model](#security-model) before installing. This tool gives Claude real filesystem and shell access to a directory on the host, driven by Slack messages.
 
 * A dedicated VM (or at minimum a container) to run it in. This is a requirement, not a nice-to-have. The agent can run shell commands, so give it its own low-privilege sandbox rather than a box that holds production credentials, SSH keys, or other projects.

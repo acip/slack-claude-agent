@@ -16,39 +16,15 @@ Think of it as a simple, solo, self-hosted take on the idea behind [Claude in Sl
 
 * It does not run in Anthropic's cloud. It runs on your host, against one directory you choose.
 * It does not post Claude's internal tool calls (Read, Bash, Edit, and so on) into Slack. Those are tracked internally for permission gating but never surfaced.
-* It does not use Socket Mode. It listens over HTTP and expects a tunnel in front of it.
+* It does not use Socket Mode. It listens over plain HTTP and expects an HTTPS endpoint (a reverse proxy or tunnel) in front of it.
 
-## Security model
+Please read the [Security model](#security-model) before installing. This tool gives Claude real filesystem and shell access to a directory on the host, driven by Slack messages.
 
-Read this before you install. This tool runs the Claude Agent SDK on your host with real filesystem and shell access to the workspace directory you configure, driven by Slack messages. **Anyone who can post in a channel the bot is in can task an autonomous agent on your machine.** There is no per-user authorization. Channel membership is the access control.
-
-How the permission gate actually works, straight from the code:
-
-* Read tools (Read, Glob, Grep, WebSearch, WebFetch, TodoWrite) run automatically and unattended.
-* A small allowlist of read-only Bash commands (things like `find`, `ls`, `cat`, `grep`, `git log`, `curl`) also runs automatically. Treat this as a convenience heuristic, not a security boundary. Commands like `cat` and `curl` can read or send arbitrary data, and prefix based allowlisting is a known soft spot. It lowers friction. It does not make Bash safe.
-* Write tools (Edit, MultiEdit, Write, NotebookEdit, and full Bash) are locked per thread until you approve a plan. Approval unlocks writes for that one thread only.
-* Approval is coarse. Approving a plan unlocks all write tools for the rest of that thread. It is not a per-command confirmation. Review plans before approving. This is also your main defense against prompt injection from files the read tools ingest automatically.
-
-Other things worth knowing:
-
-* **Slack authenticity.** Inbound events are verified by the Slack Bolt library using your `SLACK_SIGNING_SECRET`. Unsigned or unexpected requests get a 404. The 404 is noise reduction, not authentication, so the port must be reachable only through your intended tunnel.
-* **Never enable bypassPermissions.** Setting the SDK permission mode to `bypassPermissions` collapses the whole gate and lets writes run with no approval. The shipped code never enables it. Do not add it.
-* **Settings inheritance.** The shipped default reads Claude settings, project `CLAUDE.md`, and MCP config from the `project` and `local` layers only. It deliberately skips your personal global `~/.claude` config. If you widen `settingSources` in `claude-slack.js` to include `user`, the agent will also inherit your global `CLAUDE.md` and any MCP credentials it references. Review before doing that.
-
-Operator checklist:
-
-* Run it as a low-privilege user, ideally inside a container or VM, scoped to one project directory. Not as root, and not on a box holding production credentials or SSH keys the agent should never see.
-* Restrict channel membership. Being in the channel equals the ability to run the agent.
-* There is no built-in rate limiting. Exposure is bounded only by who is in the channel.
-* API usage bills to your Anthropic credentials. A busy or hostile channel is a cost vector.
-* If your `.env` is ever exposed, rotate the Slack tokens immediately.
-
-## Requirements
-
+* A dedicated VM (or at minimum a container) to run it in. This is a requirement, not a nice-to-have. The agent can run shell commands, so give it its own low-privilege sandbox rather than a box that holds production credentials, SSH keys, or other projects.
 * Node.js 18 or newer.
 * Claude Agent SDK authentication. Either a logged-in `claude` CLI on the host, or an `ANTHROPIC_API_KEY` in the process environment. The SDK spawns Claude as the user running this server, so that user must be authenticated.
 * A Slack workspace where you can create and install an app.
-* A public HTTPS tunnel to this server, for example [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) or [ngrok](https://ngrok.com/).
+* A public HTTPS endpoint that forwards to this server's port. Any reverse proxy or tunnel works: [nginx](https://nginx.org/), [Traefik](https://traefik.io/), [Caddy](https://caddyserver.com/), [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), or [ngrok](https://ngrok.com/). Cloudflare is optional; the examples below just use `cloudflared` because it is quick to start.
 
 ## Quick start
 
@@ -58,7 +34,7 @@ Operator checklist:
    cd slack-claude-agent
    npm install
    ```
-2. Start a tunnel to the port you plan to use (default 3999) and copy the public HTTPS URL.
+2. Put a public HTTPS endpoint in front of the port you plan to use (default 3999) and copy its URL. Use whichever reverse proxy or tunnel you prefer (see Requirements). A quick one-liner with cloudflared:
    ```
    cloudflared tunnel --url http://localhost:3999
    ```
@@ -114,7 +90,7 @@ The bot appends a system prompt on top of the Claude Code preset. To change its 
 
 ## Running in production
 
-Use a process manager and a persistent tunnel.
+Use a process manager and a persistent HTTPS endpoint.
 
 ```
 pm2 start ecosystem.config.js
@@ -122,7 +98,32 @@ pm2 logs slack-claude-agent
 pm2 restart slack-claude-agent
 ```
 
-Run cloudflared or ngrok as a service (not an ad hoc terminal command) so the public URL stays stable. If the tunnel hostname changes, update both Slack request URLs.
+Run your reverse proxy or tunnel (nginx, Traefik, Caddy, cloudflared, ngrok, whichever you chose) as a managed service rather than an ad hoc terminal command, so the public URL stays stable. If the hostname changes, update both Slack request URLs.
+
+## Security model
+
+This tool runs the Claude Agent SDK on your host with real filesystem and shell access to the workspace directory you configure, driven by Slack messages. **Anyone who can post in a channel the bot is in can task an autonomous agent on your machine.** There is no per-user authorization. Channel membership is the access control.
+
+How the permission gate actually works, straight from the code:
+
+* Read tools (Read, Glob, Grep, WebSearch, WebFetch, TodoWrite) run automatically and unattended.
+* A small allowlist of read-only Bash commands (things like `find`, `ls`, `cat`, `grep`, `git log`, `curl`) also runs automatically. Treat this as a convenience heuristic, not a security boundary. Commands like `cat` and `curl` can read or send arbitrary data, and prefix based allowlisting is a known soft spot. It lowers friction. It does not make Bash safe.
+* Write tools (Edit, MultiEdit, Write, NotebookEdit, and full Bash) are locked per thread until you approve a plan. Approval unlocks writes for that one thread only.
+* Approval is coarse. Approving a plan unlocks all write tools for the rest of that thread. It is not a per-command confirmation. Review plans before approving. This is also your main defense against prompt injection from files the read tools ingest automatically.
+
+Other things worth knowing:
+
+* **Slack authenticity.** Inbound events are verified by the Slack Bolt library using your `SLACK_SIGNING_SECRET`. Unsigned or unexpected requests get a 404. The 404 is noise reduction, not authentication, so the port must be reachable only through your intended HTTPS endpoint.
+* **Never enable bypassPermissions.** Setting the SDK permission mode to `bypassPermissions` collapses the whole gate and lets writes run with no approval. The shipped code never enables it. Do not add it.
+* **Settings inheritance.** The shipped default reads Claude settings, project `CLAUDE.md`, and MCP config from the `project` and `local` layers only. It deliberately skips your personal global `~/.claude` config. If you widen `settingSources` in `claude-slack.js` to include `user`, the agent will also inherit your global `CLAUDE.md` and any MCP credentials it references. Review before doing that.
+
+Operator checklist:
+
+* Run it inside a dedicated VM (or at least a container), as a low-privilege user, scoped to one project directory. Not as root, and not on a box holding production credentials or SSH keys the agent should never see.
+* Restrict channel membership. Being in the channel equals the ability to run the agent.
+* There is no built-in rate limiting. Exposure is bounded only by who is in the channel.
+* API usage bills to your Anthropic credentials. A busy or hostile channel is a cost vector.
+* If your `.env` is ever exposed, rotate the Slack tokens immediately.
 
 ## Troubleshooting
 

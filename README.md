@@ -22,42 +22,69 @@ Think of it as a simple, solo, self-hosted take on the idea behind [Claude in Sl
 
 Please read the [Security model](#security-model) before installing. This tool gives Claude real filesystem and shell access to a directory on the host, driven by Slack messages.
 
-* A dedicated VM (or at minimum a container) to run it in. This is a requirement, not a nice-to-have. The agent can run shell commands, so give it its own low-privilege sandbox rather than a box that holds production credentials, SSH keys, or other projects.
-* Node.js 18 or newer.
-* Claude Agent SDK authentication. Either a logged-in `claude` CLI on the host, or an `ANTHROPIC_API_KEY` in the process environment. The SDK spawns Claude as the user running this server, so that user must be authenticated.
-* A Slack workspace where you can create and install an app.
-* A public HTTPS endpoint that forwards to this server's port. Any reverse proxy or tunnel works: [nginx](https://nginx.org/), [Traefik](https://traefik.io/), [Caddy](https://caddyserver.com/), [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), or [ngrok](https://ngrok.com/). Cloudflare is optional; the examples below just use `cloudflared` because it is quick to start.
+* **A dedicated VM (or at minimum a container).** This is a requirement, not a nice-to-have. The agent can run shell commands, so give it its own low-privilege sandbox rather than a box that holds production credentials, SSH keys, or other projects.
+* **Node.js 18 or newer.**
+* **Claude Agent SDK authentication.** Either a logged-in `claude` CLI on the host, or an `ANTHROPIC_API_KEY` in the process environment. The SDK spawns Claude as the user running this server, so that user must be authenticated.
+* **A Slack workspace** where you can create and install an app.
+* **A public HTTPS endpoint** that forwards to this server's port. Any reverse proxy or tunnel works: [nginx](https://nginx.org/), [Traefik](https://traefik.io/), [Caddy](https://caddyserver.com/), [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), or [ngrok](https://ngrok.com/). Cloudflare is optional; the examples below just use `cloudflared` because it is quick to start. See [Set up a Cloudflare tunnel](#set-up-a-cloudflare-tunnel).
 
 ## Quick start
 
-1. Clone and install.
+1. **Clone and install.**
    ```
    git clone https://github.com/acip/slack-claude-agent.git
    cd slack-claude-agent
    npm install
    ```
-2. Put a public HTTPS endpoint in front of the port you plan to use (default 3999) and copy its URL. Use whichever reverse proxy or tunnel you prefer (see Requirements). A quick one-liner with cloudflared:
+2. **Expose the port over HTTPS.** Put a public HTTPS endpoint in front of the port you plan to use (default 3999) and copy its URL. Use whichever reverse proxy or tunnel you prefer (see Requirements). Quick throwaway tunnel with cloudflared:
    ```
    cloudflared tunnel --url http://localhost:3999
    ```
-3. Create the Slack app from the manifest. Go to [api.slack.com/apps](https://api.slack.com/apps), choose **Create New App**, then **From a manifest**, and paste [`slack-app-manifest.yaml`](slack-app-manifest.yaml). Replace `your-tunnel-host.example.com` in it with your tunnel hostname first. The manifest requests private-channel scopes (`groups:history`, `message.groups`) too; remove them if you only need public channels.
-4. Set both request URLs to `https://<your-tunnel-host>/slack/events`. It goes in two places: **Event Subscriptions** and **Interactivity & Shortcuts**. People miss the Interactivity one, and then buttons do nothing.
-5. Install the app to your workspace and copy the **Bot User OAuth Token** (`xoxb-...`) and the **Signing Secret**.
-6. Configure the environment.
+   For a stable hostname, see [Set up a Cloudflare tunnel](#set-up-a-cloudflare-tunnel).
+3. **Create the Slack app.** Go to [api.slack.com/apps](https://api.slack.com/apps), choose **Create New App**, then **From a manifest**, and paste [`slack-app-manifest.yaml`](slack-app-manifest.yaml). Replace `your-tunnel-host.example.com` in it with your tunnel hostname first. The manifest requests private-channel scopes (`groups:history`, `message.groups`) too; remove them if you only need public channels.
+4. **Set both request URLs** to `https://<your-tunnel-host>/slack/events`. It goes in two places: **Event Subscriptions** and **Interactivity & Shortcuts**. People miss the Interactivity one, and then buttons do nothing.
+5. **Install the app** to your workspace and copy the **Bot User OAuth Token** (`xoxb-...`) and the **Signing Secret**.
+6. **Configure the environment.**
    ```
    cp .env.example .env
    ```
    Fill in `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`, `PORT`, and `PROJECT_WORKSPACE`.
-7. Optional: customize the assistant's persona.
+7. **Customize the persona (optional).**
    ```
    cp prompt.example.md prompt.md
    ```
    Edit `prompt.md`. It is gitignored, so your version stays private.
-8. Start the server.
+8. **Start the server.**
    ```
    npm start
    ```
-9. In Slack, invite the bot to a channel with `/invite @claude`, then mention it: `@claude what does this project do?`
+9. **Invite and mention the bot.** In Slack, run `/invite @claude` in a channel, then mention it: `@claude what does this project do?`
+
+### Set up a Cloudflare tunnel
+
+Cloudflare is optional (any reverse proxy or tunnel works), but `cloudflared` is a quick way to get a public HTTPS URL. Install it from [Cloudflare's downloads](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) (`brew install cloudflared`, `apt install cloudflared`, or a direct binary).
+
+**Quick, throwaway tunnel** (random `*.trycloudflare.com` URL, no account needed, good for testing):
+```
+cloudflared tunnel --url http://localhost:3999
+```
+It prints an HTTPS URL. That URL changes every run, so you would re-paste it into Slack each time.
+
+**Named, persistent tunnel** (stable hostname on a domain in your Cloudflare account, best for production):
+```
+# 1. Authenticate (opens a browser; pick the domain to use)
+cloudflared tunnel login
+
+# 2. Create a tunnel and its credentials file
+cloudflared tunnel create slack-claude-agent
+
+# 3. Point a hostname at it (creates the DNS record for you)
+cloudflared tunnel route dns slack-claude-agent slack-bot.yourdomain.com
+
+# 4. Run it, forwarding to the local port
+cloudflared tunnel run --url http://localhost:3999 slack-claude-agent
+```
+Your stable Slack request URL is then `https://slack-bot.yourdomain.com/slack/events`. To keep it running, install it as a service with `cloudflared service install` (see Cloudflare's docs), or manage it under pm2 alongside the app.
 
 ## Configuration
 

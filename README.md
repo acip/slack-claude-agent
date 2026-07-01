@@ -139,14 +139,34 @@ Operator checklist:
 
 ## How it works
 
-```
-Slack  ──(events over HTTPS)──►  tunnel  ──►  server.js (Bolt HTTP receiver)
-                                                  │
-                                                  ▼
-                                          claude-slack.js
-                                    (one Claude Agent SDK session
-                                     per thread, streamed back to
-                                     a single live Slack message)
+```mermaid
+flowchart TD
+    slack["Slack workspace<br/>@mention or thread reply"]
+    proxy["HTTPS endpoint<br/>reverse proxy or tunnel"]
+    server["server.js<br/>Bolt HTTP receiver<br/>signature check, de-dupe, plan: prefix"]
+    bridge["claude-slack.js<br/>one session per thread, serialized turns"]
+    sdk["Claude Agent SDK<br/>runs on your host and workspace"]
+    gate{"Tool requested"}
+    approve["Locked until you press Approve in Slack"]
+
+    slack -->|"events over HTTPS"| proxy
+    proxy -->|"POST /slack/events"| server
+    server --> bridge
+    bridge --> sdk
+    sdk --> gate
+    gate -->|"read tools + safe Bash"| run["Run automatically"]
+    gate -->|"write tools: Edit, Write, Bash"| approve
+    approve -->|"approved for this thread"| run
+    sdk -.->|"streamed reply, question and plan cards"| slack
+
+    subgraph host["Your machine (dedicated VM)"]
+        server
+        bridge
+        sdk
+        gate
+        approve
+        run
+    end
 ```
 
 `server.js` handles Slack wiring: mentions, thread replies, de-duplication of Slack's retries, and the `plan:` prefix. `claude-slack.js` is the bridge: it runs one Claude session per thread, serializes turns, gates tools, renders question and plan cards, and persists the thread-to-session map to `thread_session_map.json`.

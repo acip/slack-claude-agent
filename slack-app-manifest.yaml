@@ -1,44 +1,38 @@
 # Slack app manifest for slack-claude-agent.
 #
 # Create the app: https://api.slack.com/apps -> "Create New App" -> "From a manifest".
-# Then replace REPLACE_ME.example.com with your tunnel's public hostname and install.
+# Then replace your-tunnel-host.example.com with your tunnel's public hostname and install.
 #
-# WARNING: every scope here lets anyone in an invited channel task an autonomous
-# agent that can read and (after plan approval) write files on your machine. Add
-# channels and scopes deliberately, and keep the bot out of channels you do not
-# control. See the Security section of the README.
+# WARNING: these scopes let anyone in an invited channel task an autonomous agent that
+# can read and (after plan approval) write files on your machine. groups:history and
+# message.groups extend that to private channels. Remove any scope or event you do not
+# need, and keep the bot out of channels you do not control. See the README Security section.
 
 display_information:
-  name: slack-claude-agent
-  description: Self-hosted bridge to Claude in Slack threads.
-
+  name: Claude Remote Worker
 features:
   bot_user:
-    display_name: claude
+    display_name: Claude
     always_online: true
-
 oauth_config:
   scopes:
     bot:
-      - app_mentions:read     # see @mentions of the bot
-      - chat:write            # post and edit its replies
-      - channels:history      # read messages in public-channel threads it is in
-      # Opt-in surfaces. Uncomment the matching event below too if you enable these:
-      # - groups:history      # private channels
-      # - im:history          # direct messages
-      # - mpim:history        # group DMs
-
+      - app_mentions:read
+      - chat:write
+      - channels:history
+      - groups:history
+  pkce_enabled: false
 settings:
   event_subscriptions:
-    request_url: https://REPLACE_ME.example.com/slack/events
+    request_url: https://your-tunnel-host.example.com/slack/events
     bot_events:
       - app_mention
       - message.channels
-      # - message.groups
-      # - message.im
-      # - message.mpim
+      - message.groups
   interactivity:
-    is_enabled: true          # required for the question cards and Approve buttons
-    request_url: https://REPLACE_ME.example.com/slack/events
+    is_enabled: true
+    request_url: https://your-tunnel-host.example.com/slack/events
   org_deploy_enabled: false
-  socket_mode_enabled: false  # this app uses HTTP + a tunnel, not Socket Mode
+  socket_mode_enabled: false
+  token_rotation_enabled: false
+  is_mcp_enabled: false
